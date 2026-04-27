@@ -1,4 +1,4 @@
-# ── WorldWire — Netlify Configuration ─────────────────────────────────────
+# ── CannonWire — Netlify Configuration ─────────────────────────────────────
 
 [build]
   publish = "."       # static site — no build step needed
@@ -17,8 +17,8 @@
 # ── Redirect bare domain → www (swap these if you prefer bare domain) ────
 # Uncomment when you connect a custom domain in Netlify + Cloudflare:
 # [[redirects]]
-#   from   = "https://worldwire.io/*"
-#   to     = "https://www.worldwire.io/:splat"
+#   from   = "https://cannonwire.io/*"
+#   to     = "https://www.cannonwire.io/:splat"
 #   status = 301
 #   force  = true
 
