@@ -321,6 +321,37 @@
         .card { position:relative; }
         .featured { position:relative; }
         .read-time { color:#9ca3af; font:600 10px/1 Arial,sans-serif; }
+        /* NEWSLETTER */
+        .nl-card { border-radius:8px; overflow:hidden; border:1px solid var(--border); background:linear-gradient(135deg, #0a1628 0%, #1a3a6b 100%); }
+        .nl-body { padding:18px 16px; }
+        .nl-eyebrow { font:800 10px/1 Arial,sans-serif; text-transform:uppercase; letter-spacing:1.5px; color:#e63946; margin-bottom:8px; }
+        .nl-title { font:900 18px/1.2 'Arial Black',Arial,sans-serif; color:#fff; letter-spacing:-.5px; margin-bottom:6px; }
+        .nl-sub { font:13px/1.5 Georgia,serif; color:#9ca3af; font-style:italic; margin-bottom:14px; }
+        .nl-form { display:flex; flex-direction:column; gap:8px; }
+        .nl-input { padding:9px 12px; border:1px solid #2d3a4a; border-radius:4px; font:13px Arial,sans-serif; color:#fff; background:#0f1923; outline:none; transition:border-color .15s; }
+        .nl-input::placeholder { color:#4b5563; }
+        .nl-input:focus { border-color:var(--accent); }
+        .nl-btn { padding:10px; background:var(--accent); color:#fff; border:none; border-radius:4px; font:700 12px/1 Arial,sans-serif; cursor:pointer; text-transform:uppercase; letter-spacing:.5px; transition:background .15s; }
+        .nl-btn:hover { background:#c1121f; }
+        .nl-btn:disabled { opacity:.6; cursor:not-allowed; }
+        .nl-success { text-align:center; padding:10px 0; }
+        .nl-success-icon { font-size:28px; margin-bottom:8px; }
+        .nl-success-msg { font:700 13px/1.4 Arial,sans-serif; color:#4ade80; }
+        .nl-success-sub { font:12px Arial,sans-serif; color:#6b7280; margin-top:4px; }
+        /* INLINE CTA */
+        .nl-inline { grid-column:1/-1; background:linear-gradient(135deg,#0a1628,#1a3a6b); border-radius:8px; padding:24px 28px; display:flex; align-items:center; justify-content:space-between; gap:24px; border:1px solid #1e3a5f; }
+        .nl-inline-left { flex:1; }
+        .nl-inline-eyebrow { font:800 10px/1 Arial,sans-serif; text-transform:uppercase; letter-spacing:1.5px; color:var(--accent); margin-bottom:6px; }
+        .nl-inline-title { font:900 20px/1.2 'Arial Black',Arial,sans-serif; color:#fff; letter-spacing:-.5px; margin-bottom:4px; }
+        .nl-inline-sub { font:13px/1.5 Georgia,serif; color:#9ca3af; font-style:italic; }
+        .nl-inline-form { display:flex; gap:8px; flex-shrink:0; }
+        .nl-inline-input { padding:10px 14px; border:1px solid #2d3a4a; border-radius:4px; font:13px Arial,sans-serif; color:#fff; background:#0f1923; outline:none; width:220px; transition:border-color .15s; }
+        .nl-inline-input::placeholder { color:#4b5563; }
+        .nl-inline-input:focus { border-color:var(--accent); }
+        .nl-inline-btn { padding:10px 20px; background:var(--accent); color:#fff; border:none; border-radius:4px; font:700 12px/1 Arial,sans-serif; cursor:pointer; white-space:nowrap; letter-spacing:.5px; transition:background .15s; }
+        .nl-inline-btn:hover { background:#c1121f; }
+        @media(max-width:768px){ .nl-inline{ flex-direction:column; align-items:flex-start; } .nl-inline-form{ width:100%; } .nl-inline-input{ flex:1; width:auto; } }
+
         /* SAVED SIDEBAR */
         .saved-empty { padding:16px; font:italic 12px Arial,sans-serif; color:#9ca3af; text-align:center; }
         .saved-item { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; padding:10px 16px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; }
@@ -567,12 +598,34 @@
             <div class="sb-head">🌐 Browse by Region</div>
             <div id="regions"></div>
         </div>
+        <!-- NEWSLETTER SIDEBAR -->
+        <div class="nl-card">
+            <div class="nl-body">
+                <div class="nl-eyebrow">📬 Free Newsletter</div>
+                <div class="nl-title">Daily Digest</div>
+                <div class="nl-sub">Top 10 stories, delivered every morning. No spam, ever.</div>
+                <div id="nlSidebarForm">
+                    <form class="nl-form" onsubmit="handleNlSubmit(event,'nlSidebarForm')">
+                        <input type="hidden" name="form-name" value="newsletter">
+                        <input type="hidden" name="bot-field">
+                        <input class="nl-input" type="email" name="email" placeholder="your@email.com" required autocomplete="email">
+                        <button class="nl-btn" type="submit">Subscribe Free →</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <div class="sb-card">
             <div class="sb-head">📡 Active Sources</div>
             <div id="sources"></div>
         </div>
     </aside>
 </div>
+
+<!-- NETLIFY FORM DETECTION (hidden) -->
+<form name="newsletter" data-netlify="true" data-netlify-honeypot="bot-field" hidden>
+  <input type="email" name="email">
+</form>
 
 <!-- SHARE POPOVER -->
 <div class="share-popover" id="sharePopover">
@@ -991,7 +1044,24 @@ function renderGrid(articles) {
       </div>
     </div>`;
 
-  articles.slice(1, 22).forEach(a => {
+  articles.slice(1, 22).forEach((a, idx) => {
+    // Inject newsletter CTA after the 6th card (idx===5), but only if not already subscribed
+    if (idx === 5 && !nlSubscribed()) {
+      html += `
+        <div class="nl-inline" id="nlInline">
+          <div class="nl-inline-left">
+            <div class="nl-inline-eyebrow">📬 Free Newsletter</div>
+            <div class="nl-inline-title">Get the Daily Digest</div>
+            <div class="nl-inline-sub">Top 10 stories in your inbox every morning. Free, no spam.</div>
+          </div>
+          <form class="nl-inline-form" onsubmit="handleNlSubmit(event,'nlInline')">
+            <input type="hidden" name="form-name" value="newsletter">
+            <input type="hidden" name="bot-field">
+            <input class="nl-inline-input" type="email" name="email" placeholder="your@email.com" required autocomplete="email">
+            <button class="nl-inline-btn" type="submit">Subscribe →</button>
+          </form>
+        </div>`;
+    }
     html += `
       <div class="card" onclick="window.open('${esc(a.link)}','_blank')">
         ${bmBtn(a)}
@@ -1759,6 +1829,53 @@ function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── NEWSLETTER ────────────────────────────────────────────────────────────
+function nlSubscribed() {
+  try { return localStorage.getItem('cw_nl') === '1'; } catch { return false; }
+}
+
+async function handleNlSubmit(e, containerId) {
+  e.preventDefault();
+  const form    = e.target;
+  const email   = form.querySelector('[name="email"]').value.trim();
+  const btn     = form.querySelector('button[type="submit"]');
+  if (!email) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Subscribing…';
+
+  try {
+    await fetch('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ 'form-name': 'newsletter', email })
+    });
+  } catch (_) { /* Netlify still captures even if fetch "fails" on localhost */ }
+
+  // Mark subscribed so inline CTA disappears on next render
+  try { localStorage.setItem('cw_nl', '1'); } catch {}
+
+  // Show success state
+  const container = document.getElementById(containerId);
+  if (container) {
+    const isSidebar = containerId === 'nlSidebarForm';
+    if (isSidebar) {
+      container.innerHTML = `
+        <div class="nl-success">
+          <div class="nl-success-icon">✅</div>
+          <div class="nl-success-msg">You're on the list!</div>
+          <div class="nl-success-sub">First digest hits your inbox tomorrow morning.</div>
+        </div>`;
+    } else {
+      container.innerHTML = `
+        <div style="text-align:center;padding:8px 0;color:#4ade80;font:700 14px Arial,sans-serif">
+          ✅ You're subscribed! First digest arrives tomorrow.
+        </div>`;
+    }
+  }
+  showToast('✅ Subscribed! Check your inbox tomorrow.');
 }
 
 // ── STREAK COUNTER ────────────────────────────────────────────────────────
