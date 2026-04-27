@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WorldWire — Global News Aggregator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #0a1628;
+            --accent:  #e63946;
+            --text:    #1d2433;
+            --muted:   #6b7280;
+            --bg:      #f2f2ec;
+            --card:    #ffffff;
+            --border:  #e5e7eb;
+        }
+        body { font-family: Georgia, serif; background: var(--bg); color: var(--text); }
+
+        /* TICKER */
+        .ticker-wrap { background: var(--accent); overflow: hidden; padding: 7px 0; }
+        .ticker-track { display: inline-flex; white-space: nowrap; animation: scroll 120s linear infinite; }
+        .ticker-track:hover { animation-play-state: paused; }
+        .tick { font: 700 12px/1 Arial,sans-serif; color: #fff; padding: 0 28px; letter-spacing: .3px; }
+        .tick-sep { color: rgba(255,255,255,.4); }
+        @keyframes scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+        /* HEADER */
+        header { background: var(--primary); padding: 16px 28px; display:flex; align-items:center; justify-content:space-between; border-bottom: 3px solid var(--accent); }
+        .hdr-left { display:flex; flex-direction:column; gap:4px; }
+        .logo { font: 900 36px/1 'Arial Black',Arial,sans-serif; color:#fff; letter-spacing:-2px; text-transform:uppercase; }
+        .logo span { color: var(--accent); }
+        .hdr-tagline { color:#e5e7eb; font: italic 700 14px/1 Georgia,serif; letter-spacing:.2px; }
+        .hdr-sub { color:#4b5563; font:700 10px/1 Arial,sans-serif; text-transform:uppercase; letter-spacing:1.5px; }
+        .hdr-right { text-align:right; }
+        .hdr-date  { color:#9ca3af; font:12px/1.4 Arial,sans-serif; }
+
+        /* AD LEADERBOARD */
+        .ad-leader { background:#eaeae2; border-bottom:1px solid var(--border); display:flex; justify-content:center; padding:10px; }
+        .ad-box { background:#ddddd4; border:1px dashed #bbb; display:flex; align-items:center; justify-content:center; color:#aaa; font:11px/1 Arial,sans-serif; letter-spacing:.5px; text-transform:uppercase; border-radius:4px; }
+
+        /* NAV */
+        nav { background:var(--primary); border-top:1px solid #1a2f50; position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+        .tabs { display:flex; list-style:none; padding:0 20px; overflow-x:auto; scrollbar-width:none; }
+        .tabs::-webkit-scrollbar { display:none; }
+        .tabs button { display:block; padding:11px 16px; background:none; border:none; color:#9ca3af; font:700 12px/1 Arial,sans-serif; letter-spacing:.6px; cursor:pointer; text-transform:uppercase; border-bottom:3px solid transparent; transition:color .15s; white-space:nowrap; }
+        .tabs button:hover { color:#e5e7eb; }
+        .tabs button.active { color:#fff; border-bottom-color:var(--accent); }
+
+        /* LAYOUT */
+        .wrap { max-width:1440px; margin:0 auto; padding:24px 20px; display:grid; grid-template-columns:1fr 310px; gap:28px; }
+
+        /* SECTION HEAD */
+        .sec-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; padding-bottom:10px; border-bottom:3px solid var(--accent); }
+        .sec-title { font:800 17px/1 Arial,sans-serif; text-transform:uppercase; letter-spacing:1.5px; }
+        .refresh-btn { background:none; border:1px solid #d1d5db; padding:5px 14px; font:700 11px/1 Arial,sans-serif; cursor:pointer; border-radius:4px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; transition:background .15s; }
+        .refresh-btn:hover { background:#e5e7eb; }
+        .refresh-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+        /* GRID */
+        .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+
+        /* FEATURED */
+        .featured { grid-column:1/-1; display:grid; grid-template-columns:55% 1fr; background:var(--card); border-radius:8px; overflow:hidden; border:1px solid var(--border); box-shadow:0 2px 8px rgba(0,0,0,.06); cursor:pointer; transition:box-shadow .15s; }
+        .featured:hover { box-shadow:0 6px 20px rgba(0,0,0,.12); }
+        .feat-img { width:100%; height:280px; object-fit:cover; display:block; background:#d1d5db; }
+        .feat-nimg { height:280px; background:linear-gradient(135deg,#0f2040,#1a3a6b); display:flex; align-items:center; justify-content:center; font-size:56px; }
+        .feat-body { padding:28px 24px; display:flex; flex-direction:column; justify-content:center; }
+        .feat-title { font-size:20px; line-height:1.35; font-weight:700; margin-bottom:12px; }
+
+        /* CARD */
+        .card { background:var(--card); border-radius:8px; overflow:hidden; border:1px solid var(--border); box-shadow:0 1px 4px rgba(0,0,0,.05); cursor:pointer; display:flex; flex-direction:column; transition:transform .15s,box-shadow .15s; }
+        .card:hover { transform:translateY(-3px); box-shadow:0 6px 18px rgba(0,0,0,.1); }
+        .card-img { width:100%; height:168px; object-fit:cover; display:block; background:#d1d5db; flex-shrink:0; }
+        .card-nimg { height:168px; background:linear-gradient(135deg,#0f2040,#1a3a6b); display:flex; align-items:center; justify-content:center; font-size:36px; flex-shrink:0; }
+        .card-body { padding:14px; flex:1; display:flex; flex-direction:column; }
+        .card-src  { font:800 10px/1 Arial,sans-serif; text-transform:uppercase; letter-spacing:.8px; color:var(--accent); margin-bottom:6px; }
+        .card-title { font-size:14px; line-height:1.45; font-weight:700; color:var(--text); margin-bottom:8px; flex:1; }
+        .card-desc  { font:12px/1.55 Arial,sans-serif; color:var(--muted); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .card-meta  { margin-top:10px; font:600 10px/1 Arial,sans-serif; color:#9ca3af; letter-spacing:.3px; }
+
+        /* STATES */
+        .loading { grid-column:1/-1; text-align:center; padding:80px 20px; color:var(--muted); font-family:Arial,sans-serif; }
+        .spin { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:rot .75s linear infinite; margin:0 auto 16px; }
+        @keyframes rot { to{transform:rotate(360deg)} }
+        .err { grid-column:1/-1; text-align:center; padding:60px 20px; font-family:Arial,sans-serif; color:var(--muted); }
+        .err-btn { margin-top:16px; padding:9px 22px; background:var(--accent); color:#fff; border:none; border-radius:4px; cursor:pointer; font:700 13px/1 Arial,sans-serif; }
+
+        /* SIDEBAR */
+        .sidebar { display:flex; flex-direction:column; gap:20px; }
+        .sb-card { background:var(--card); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+        .sb-head { background:var(--primary); color:#fff; padding:10px 16px; font:800 11px/1 Arial,sans-serif; text-transform:uppercase; letter-spacing:1.2px; }
+        .trend-row { padding:12px 16px; border-bottom:1px solid var(--border); cursor:pointer; display:flex; gap:12px; align-items:flex-start; transition:background .1s; }
+        .trend-row:last-child { border-bottom:none; }
+        .trend-row:hover { background:#f8f8f2; }
+        .trend-n { font:900 20px/1 'Arial Black',Arial,sans-serif; color:#e5e7eb; min-width:26px; padding-top:2px; }
+        .trend-title { font-size:12px; font-weight:700; line-height:1.4; color:var(--text); }
+        .trend-src   { font:700 10px/1 Arial,sans-serif; color:var(--accent); margin-top:3px; text-transform:uppercase; letter-spacing:.5px; }
+        .ad-sb { background:#ddddd4; border:1px dashed #bbb; border-radius:8px; height:250px; display:flex; align-items:center; justify-content:center; color:#aaa; font:11px/1 Arial,sans-serif; text-transform:uppercase; letter-spacing:.5px; }
+        .reg-link { padding:9px 16px; border-bottom:1px solid var(--border); cursor:pointer; font:600 12px/1 Arial,sans-serif; color:var(--text); display:flex; align-items:center; gap:8px; transition:background .1s,color .1s; }
+        .reg-link:last-child { border-bottom:none; }
+        .reg-link:hover { background:#f8f8f2; color:var(--accent); }
+        .src-dot { color:var(--accent); }
+
+        /* WEATHER WIDGET */
+        .wx-card { border-radius:8px; overflow:hidden; border:1px solid var(--border); }
+        .wx-head { background:var(--primary); color:#fff; padding:10px 16px; font:800 11px/1 Arial,sans-serif; text-transform:uppercase; letter-spacing:1.2px; }
+        .wx-body { padding:14px 16px; }
+        .wx-zip-row { display:flex; gap:8px; margin-bottom:12px; }
+        .wx-zip-input { flex:1; padding:7px 10px; border:1px solid var(--border); border-radius:4px; font:13px Arial,sans-serif; color:var(--text); outline:none; transition:border-color .15s; }
+        .wx-zip-input:focus { border-color:var(--accent); }
+        .wx-zip-btn { padding:7px 12px; background:var(--accent); color:#fff; border:none; border-radius:4px; font:700 12px/1 Arial,sans-serif; cursor:pointer; white-space:nowrap; }
+        .wx-zip-btn:hover { background:#c1121f; }
+        .wx-current { display:flex; align-items:center; gap:12px; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+        .wx-icon { font-size:44px; line-height:1; }
+        .wx-temps { flex:1; }
+        .wx-temp-main { font:900 36px/1 'Arial Black',Arial,sans-serif; color:var(--text); }
+        .wx-temp-main sup { font-size:16px; font-weight:700; vertical-align:super; }
+        .wx-desc { font:600 12px/1.3 Arial,sans-serif; color:var(--muted); margin-top:4px; text-transform:capitalize; }
+        .wx-location { font:700 11px/1 Arial,sans-serif; color:var(--accent); text-transform:uppercase; letter-spacing:.5px; margin-top:3px; }
+        .wx-details { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:12px; }
+        .wx-detail { background:#f8f8f2; border-radius:4px; padding:7px 8px; }
+        .wx-detail-label { font:600 9px/1 Arial,sans-serif; color:#9ca3af; text-transform:uppercase; letter-spacing:.5px; margin-bottom:3px; }
+        .wx-detail-val { font:700 13px/1 Arial,sans-serif; color:var(--text); }
+        .wx-forecast { display:flex; gap:6px; }
+        .wx-day { flex:1; background:#f8f8f2; border-radius:4px; padding:7px 4px; text-align:center; }
+        .wx-day-name { font:700 9px/1 Arial,sans-serif; color:#9ca3af; text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
+        .wx-day-icon { font-size:18px; margin-bottom:4px; }
+        .wx-day-hi { font:700 12px/1 Arial,sans-serif; color:var(--text); }
+        .wx-day-lo { font:600 11px/1 Arial,sans-serif; color:#9ca3af; margin-top:2px; }
+        .wx-msg { padding:20px 0; text-align:center; font:12px Arial,sans-serif; color:var(--muted); }
+        .wx-err { color:var(--accent); font:700 12px Arial,sans-serif; text-align:center; padding:8px 0; }
+
+        /* SOURCE TOGGLES */
+        .src-row { display:flex; align-items:center; justify-content:space-between; padding:9px 16px; border-bottom:1px solid var(--border); transition:background .1s; }
+        .src-row:last-child { border-bottom:none; }
+        .src-row:hover { background:#f8f8f2; }
+        .src-row.dimmed { opacity:.45; }
+        .src-name { font:600 12px/1 Arial,sans-serif; color:var(--text); display:flex; align-items:center; gap:8px; }
+        .src-count { font:600 10px/1 Arial,sans-serif; color:#9ca3af; margin-left:4px; }
+        .toggle { position:relative; width:34px; height:19px; flex-shrink:0; }
+        .toggle input { opacity:0; width:0; height:0; position:absolute; }
+        .toggle-track { position:absolute; inset:0; background:#d1d5db; border-radius:19px; cursor:pointer; transition:background .2s; }
+        .toggle-track:before { content:''; position:absolute; width:15px; height:15px; left:2px; top:2px; background:#fff; border-radius:50%; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+        .toggle input:checked ~ .toggle-track { background:var(--accent); }
+        .toggle input:checked ~ .toggle-track:before { transform:translateX(15px); }
+        .sources-footer { padding:10px 16px; font:11px/1.4 Arial,sans-serif; color:#9ca3af; border-top:1px solid var(--border); display:flex; justify-content:space-between; }
+        .sources-footer button { background:none; border:none; font:700 11px/1 Arial,sans-serif; cursor:pointer; padding:0; }
+        .sources-footer button:hover { text-decoration:underline; }
+
+        /* FOOTER */
+        footer { background:var(--primary); color:#4b5563; text-align:center; padding:24px 20px; font:11px/1.6 Arial,sans-serif; margin-top:40px; border-top:3px solid var(--accent); }
+        .foot-logo { font:900 20px/1 'Arial Black',Arial,sans-serif; color:#374151; letter-spacing:-1px; margin-bottom:8px; }
+        .foot-logo span { color:var(--accent); }
+        footer a { color:#6b7280; text-decoration:none; margin:0 8px; }
+        footer a:hover { color:#9ca3af; }
+
+        /* RESPONSIVE */
+        @media(max-width:1100px){ .wrap{grid-template-columns:1fr} .sidebar{display:grid;grid-template-columns:1fr 1fr} }
+        @media(max-width:768px) { .grid{grid-template-columns:1fr} .featured{grid-template-columns:1fr} .feat-img,.feat-nimg{height:200px} .sidebar{grid-template-columns:1fr} }
+        @media(max-width:480px) { header{padding:12px 16px} .wrap{padding:16px 12px} .logo{font-size:24px} }
+    </style>
+</head>
+<body>
+
+<!-- TICKER -->
+<div class="ticker-wrap"><div class="ticker-track" id="ticker"><span class="tick">Loading headlines…</span></div></div>
+
+<!-- HEADER -->
+<header>
+    <div class="hdr-left">
+        <div class="logo">World<span>Wire</span></div>
+        <div class="hdr-tagline">All the News. None of the Noise.</div>
+        <div class="hdr-sub">AI-powered global news wire</div>
+    </div>
+    <div class="hdr-right">
+        <div class="hdr-date" id="hdrDate">—</div>
+    </div>
+</header>
+
+<!-- TOP AD -->
+<div class="ad-leader">
+    <div class="ad-box" style="width:728px;max-width:100%;height:90px;">Advertisement · 728×90</div>
+</div>
+
+<!-- NAV -->
+<nav>
+    <ul class="tabs" id="tabList">
+        <li><button class="active" data-tab="us">🇺🇸 United States</button></li>
+        <li><button data-tab="world">🌍 World</button></li>
+        <li><button data-tab="europe">🇪🇺 Europe</button></li>
+        <li><button data-tab="asia">🌏 Asia</button></li>
+        <li><button data-tab="middleeast">🕌 Middle East</button></li>
+        <li><button data-tab="africa">🌍 Africa</button></li>
+        <li><button data-tab="latam">🌎 Latin America</button></li>
+        <li><button data-tab="politics">🏛️ Politics</button></li>
+        <li><button data-tab="business">📈 Business</button></li>
+        <li><button data-tab="tech">💻 Technology</button></li>
+        <li><button data-tab="science">🔬 Science</button></li>
+        <li><button data-tab="sports">⚽ Sports</button></li>
+        <li><button data-tab="entertainment">🎬 Entertainment</button></li>
+    </ul>
+</nav>
+
+<!-- PAGE -->
+<div class="wrap">
+    <main>
+        <div class="sec-head">
+            <span class="sec-title" id="secTitle">🇺🇸 United States</span>
+            <button class="refresh-btn" id="refreshBtn" onclick="doRefresh()">↻ Refresh</button>
+        </div>
+        <div class="grid" id="newsGrid">
+            <div class="loading"><div class="spin"></div>Fetching headlines…</div>
+        </div>
+    </main>
+
+    <aside class="sidebar">
+
+        <!-- WEATHER WIDGET -->
+        <div class="wx-card sb-card">
+            <div class="sb-head">🌤 Local Weather</div>
+            <div class="wx-body">
+                <div class="wx-zip-row">
+                    <input class="wx-zip-input" id="wxZip" type="text" maxlength="10"
+                           placeholder="Enter zip code…"
+                           onkeydown="if(event.key==='Enter') fetchWeather()">
+                    <button class="wx-zip-btn" onclick="fetchWeather()">Go</button>
+                </div>
+                <div id="wxDisplay">
+                    <div class="wx-msg">Enter your zip code for local weather.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sb-card">
+            <div class="sb-head">🔥 Trending Now</div>
+            <div id="trending"><div style="padding:20px;text-align:center;color:#9ca3af;font:12px Arial,sans-serif">Loading…</div></div>
+        </div>
+        <div class="ad-sb">Advertisement · 300×250</div>
+        <div class="sb-card">
+            <div class="sb-head">🌐 Browse by Region</div>
+            <div id="regions"></div>
+        </div>
+        <div class="sb-card">
+            <div class="sb-head">📡 Active Sources</div>
+            <div id="sources"></div>
+        </div>
+    </aside>
+</div>
+
+<!-- FOOTER -->
+<footer>
+    <div class="foot-logo">World<span>Wire</span></div>
+    <p style="font-style:italic;font-size:13px;color:#6b7280;margin-bottom:4px">All the News. None of the Noise.</p>
+    <p style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#374151;margin-bottom:10px">AI-powered global news wire</p>
+    <p>Content sourced from publicly available RSS feeds worldwide · Auto-updates every 15 minutes</p>
+    <p style="margin-top:8px"><a href="#">About</a><a href="#">Privacy</a><a href="#">Advertise</a><a href="#">Contact</a><a href="#">API</a></p>
+    <p style="margin-top:10px;color:#374151">© 2026 WorldWire News Aggregator</p>
+</footer>
+
+<script>
+// ── FEED CONFIG ────────────────────────────────────────────────────────────
+const TABS = {
+  us:          { label:'United States',  icon:'🇺🇸', feeds:[
+    { name:'NPR',            url:'https://feeds.npr.org/1001/rss.xml' },
+    { name:'BBC US',         url:'https://feeds.bbci.co.uk/news/us-and-canada/rss.xml' },
+    { name:'ABC News',       url:'https://abcnews.go.com/abcnews/topstories' },
+    { name:'CBS News',       url:'https://www.cbsnews.com/latest/rss/main' },
+    { name:'Fox News',       url:'https://moxie.foxnews.com/google-publisher/latest.xml' },
+    { name:'CNN',            url:'http://rss.cnn.com/rss/cnn_topstories.rss' },
+    { name:'NBC News',       url:'https://feeds.nbcnews.com/nbcnews/public/news' },
+    { name:'USA Today',      url:'https://rssfeeds.usatoday.com/usatoday-NewsTopStories' },
+    { name:'The Guardian US',url:'https://www.theguardian.com/us-news/rss' },
+    { name:'NY Times',       url:'https://rss.nytimes.com/services/xml/rss/nyt/US.xml' },
+    { name:'Washington Post',url:'https://feeds.washingtonpost.com/rss/national' },
+    { name:'The Hill',       url:'https://thehill.com/news/feed/' },
+    { name:'Axios',          url:'https://api.axios.com/feed/' },
+    { name:'AP News',        url:'https://rsshub.app/ap/topics/apf-topnews' },
+  ]},
+  world:       { label:'World',          icon:'🌍', feeds:[
+    { name:'BBC World',    url:'https://feeds.bbci.co.uk/news/world/rss.xml' },
+    { name:'Al Jazeera',   url:'https://www.aljazeera.com/xml/rss/all.xml' },
+    { name:'Reuters World',url:'https://feeds.reuters.com/reuters/worldNews' },
+  ]},
+  europe:      { label:'Europe',         icon:'🇪🇺', feeds:[
+    { name:'BBC Europe',   url:'https://feeds.bbci.co.uk/news/world/europe/rss.xml' },
+    { name:'The Guardian', url:'https://www.theguardian.com/world/europe-news/rss' },
+  ]},
+  asia:        { label:'Asia',           icon:'🌏', feeds:[
+    { name:'BBC Asia',     url:'https://feeds.bbci.co.uk/news/world/asia/rss.xml' },
+    { name:'Reuters Asia', url:'https://feeds.reuters.com/reuters/asiaNews' },
+  ]},
+  middleeast:  { label:'Middle East',    icon:'🕌', feeds:[
+    { name:'BBC Mid East', url:'https://feeds.bbci.co.uk/news/world/middle_east/rss.xml' },
+    { name:'Al Jazeera',   url:'https://www.aljazeera.com/xml/rss/all.xml' },
+  ]},
+  africa:      { label:'Africa',         icon:'🌍', feeds:[
+    { name:'BBC Africa',   url:'https://feeds.bbci.co.uk/news/world/africa/rss.xml' },
+  ]},
+  latam:       { label:'Latin America',  icon:'🌎', feeds:[
+    { name:'BBC Latin Am', url:'https://feeds.bbci.co.uk/news/world/latin_america/rss.xml' },
+    { name:'Reuters LatAm',url:'https://feeds.reuters.com/reuters/latinamericaNews' },
+  ]},
+  politics:    { label:'Politics',       icon:'🏛️', feeds:[
+    { name:'BBC Politics', url:'https://feeds.bbci.co.uk/news/politics/rss.xml' },
+    { name:'Politico',     url:'https://rss.politico.com/politics-news.xml' },
+    { name:'The Hill',     url:'https://thehill.com/news/feed/' },
+  ]},
+  business:    { label:'Business',       icon:'📈', feeds:[
+    { name:'BBC Business', url:'https://feeds.bbci.co.uk/news/business/rss.xml' },
+    { name:'CNBC',         url:'https://www.cnbc.com/id/100003114/device/rss/rss.html' },
+    { name:'Reuters Biz',  url:'https://feeds.reuters.com/reuters/businessNews' },
+  ]},
+  tech:        { label:'Technology',     icon:'💻', feeds:[
+    { name:'BBC Tech',     url:'https://feeds.bbci.co.uk/news/technology/rss.xml' },
+    { name:'TechCrunch',   url:'https://techcrunch.com/feed/' },
+    { name:'The Verge',    url:'https://www.theverge.com/rss/index.xml' },
+  ]},
+  science:     { label:'Science',        icon:'🔬', feeds:[
+    { name:'BBC Science',  url:'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml' },
+    { name:'Sci. American',url:'https://rss.sciam.com/ScientificAmerican-Global' },
+    { name:'NASA News',    url:'https://www.nasa.gov/rss/dyn/breaking_news.rss' },
+  ]},
+  sports:      { label:'Sports',         icon:'⚽', feeds:[
+    { name:'BBC Sport',    url:'https://feeds.bbci.co.uk/sport/rss.xml' },
+    { name:'ESPN',         url:'https://www.espn.com/espn/rss/news' },
+  ]},
+  entertainment:{ label:'Entertainment', icon:'🎬', feeds:[
+    { name:'BBC Ents',     url:'https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml' },
+    { name:'Variety',      url:'https://variety.com/feed/' },
+    { name:'Hollywood Rep.',url:'https://www.hollywoodreporter.com/feed/' },
+  ]},
+};
+
+// CORS proxies — tried in order
+const PROXIES = [
+  u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://thingproxy.freeboard.io/fetch/${u}`,
+];
+
+let activeTab = 'us';
+const tabCache    = {};   // tabCache[tab][sourceName]  = articles[]
+const srcToggles  = {};   // srcToggles[tab][sourceName] = true/false
+
+// ── UTILITIES ─────────────────────────────────────────────────────────────
+const esc  = s => (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const strip = h => { const d=document.createElement('div'); d.innerHTML=h||''; return (d.textContent||'').trim(); };
+function timeAgo(d) {
+  if (!d) return '';
+  const s = Math.floor((Date.now() - new Date(d)) / 1000);
+  if (s < 60)    return 'Just now';
+  if (s < 3600)  return Math.floor(s/60)+'m ago';
+  if (s < 86400) return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+
+// ── XML PARSER ─────────────────────────────────────────────────────────────
+const NS_MEDIA   = 'http://search.yahoo.com/mrss/';
+const NS_CONTENT = 'http://purl.org/rss/1.0/modules/content/';
+const NS_DC      = 'http://purl.org/dc/elements/1.1/';
+
+function nsEl(el, ns, tag)   { return el.getElementsByTagNameNS(ns, tag)[0] || null; }
+function nsAttr(el, ns, tag, attr) { const n = nsEl(el,ns,tag); return n ? (n.getAttribute(attr)||'') : ''; }
+function nsText(el, ns, tag) { const n = nsEl(el,ns,tag); return n ? (n.textContent||'').trim() : ''; }
+
+function extractImage(el, rawDesc, rawContent) {
+  // 1. media:content (BBC, Reuters, most major outlets)
+  let img = nsAttr(el, NS_MEDIA, 'content', 'url');
+  if (img) return img;
+
+  // 2. media:thumbnail
+  img = nsAttr(el, NS_MEDIA, 'thumbnail', 'url');
+  if (img) return img;
+
+  // 3. All media:content elements — pick first with url
+  const allMedia = el.getElementsByTagNameNS(NS_MEDIA, 'content');
+  for (const m of allMedia) {
+    const u = m.getAttribute('url');
+    if (u && /\.(jpg|jpeg|png|gif|webp)/i.test(u)) return u;
+  }
+
+  // 4. enclosure tag
+  const enc = el.querySelector('enclosure');
+  if (enc) {
+    const t = enc.getAttribute('type') || '';
+    const u = enc.getAttribute('url') || '';
+    if (u && (t.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)/i.test(u))) return u;
+  }
+
+  // 5. img tag inside description HTML
+  if (rawDesc) {
+    const m = rawDesc.match(/<img[^>]+src=["']([^"'"\s]+\.(jpg|jpeg|png|gif|webp)[^"']*)/i);
+    if (m) return m[1];
+  }
+
+  // 6. img tag inside content:encoded
+  if (rawContent) {
+    const m = rawContent.match(/<img[^>]+src=["']([^"'"\s]+\.(jpg|jpeg|png|gif|webp)[^"']*)/i);
+    if (m) return m[1];
+  }
+
+  // 7. Any url-looking thing in description that's an image
+  if (rawDesc) {
+    const m = rawDesc.match(/https?:\/\/[^\s"'<>]+\.(jpg|jpeg|png|webp)/i);
+    if (m) return m[0];
+  }
+
+  return '';
+}
+
+function parseXML(xmlStr, sourceName) {
+  const doc = new DOMParser().parseFromString(xmlStr, 'text/xml');
+  const items = [...doc.querySelectorAll('item, entry')];
+
+  return items.slice(0, 25).map(el => {
+    // Title
+    const title = strip(el.querySelector('title')?.textContent || '');
+
+    // Link — RSS uses text, Atom uses href attribute
+    let link = (el.querySelector('link')?.textContent || '').trim();
+    if (!link) link = el.querySelector('link')?.getAttribute('href') || '';
+    if (!link) link = el.querySelector('origLink')?.getAttribute('href') || '#';
+
+    // Raw HTML strings for image scanning
+    const rawDesc    = el.querySelector('description, summary')?.innerHTML
+                    || el.querySelector('description, summary')?.textContent || '';
+    const rawContent = nsEl(el, NS_CONTENT, 'encoded')?.textContent || '';
+
+    // Description (plain text)
+    const description = strip(rawContent || rawDesc);
+
+    // Date
+    const pubDate = (el.querySelector('pubDate')?.textContent
+                  || el.querySelector('published')?.textContent
+                  || el.querySelector('updated')?.textContent
+                  || nsText(el, NS_DC, 'date') || '').trim();
+
+    // Image
+    const image = extractImage(el, rawDesc, rawContent);
+
+    return { title, link: link.trim(), description, image, pubDate, source: sourceName };
+  }).filter(a => a.title.length > 5);
+}
+
+// ── FETCH ONE FEED (with proxy fallback) ──────────────────────────────────
+async function fetchFeed(source) {
+  for (const makeUrl of PROXIES) {
+    try {
+      const res = await fetch(makeUrl(source.url), { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) continue;
+      const json = await res.json().catch(null);
+      // allorigins wraps in { contents: '...' }
+      const xml = (json && json.contents) ? json.contents : await res.text().catch(()=>'');
+      if (!xml || xml.length < 100) continue;
+      const items = parseXML(xml, source.name);
+      if (items.length) return items;
+    } catch { /* try next proxy */ }
+  }
+  return [];
+}
+
+// ── LOAD TAB ──────────────────────────────────────────────────────────────
+async function loadTab(tab) {
+  activeTab = tab;
+  const cfg = TABS[tab];
+  document.getElementById('secTitle').textContent = cfg.icon + ' ' + cfg.label;
+  document.getElementById('newsGrid').innerHTML   = `<div class="loading"><div class="spin"></div>Fetching ${cfg.label} headlines…</div>`;
+
+  // Init toggle state for this tab (preserve if already set)
+  if (!srcToggles[tab]) {
+    srcToggles[tab] = {};
+    cfg.feeds.forEach(f => srcToggles[tab][f.name] = true);
+  }
+
+  // Init cache bucket
+  tabCache[tab] = tabCache[tab] || {};
+
+  // Fetch all feeds in parallel, store per-source
+  await Promise.all(cfg.feeds.map(async feed => {
+    const articles = await fetchFeed(feed);
+    tabCache[tab][feed.name] = articles;
+  }));
+
+  renderSources(tab);
+  applyFiltersAndRender(tab);
+}
+
+// ── FILTER + RENDER from cache ─────────────────────────────────────────────
+function applyFiltersAndRender(tab) {
+  const cfg      = TABS[tab];
+  const toggles  = srcToggles[tab] || {};
+  const cache    = tabCache[tab]   || {};
+
+  // Merge only enabled sources
+  let articles = cfg.feeds
+    .filter(f => toggles[f.name] !== false)
+    .flatMap(f => cache[f.name] || []);
+
+  // Dedupe + sort
+  const seen = new Set();
+  articles = articles
+    .filter(a => {
+      const k = a.title.toLowerCase().replace(/\s+/g,' ').trim();
+      if (seen.has(k) || k.length < 8) return false;
+      seen.add(k); return true;
+    })
+    .sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
+
+  renderGrid(articles);
+  renderTrending(articles.slice(0, 8));
+  renderTicker(articles.slice(0, 30));
+}
+
+// ── TOGGLE A SOURCE ────────────────────────────────────────────────────────
+function toggleSource(tab, sourceName) {
+  if (!srcToggles[tab]) return;
+  // Prevent turning off the last active source
+  const active = Object.values(srcToggles[tab]).filter(Boolean).length;
+  if (active === 1 && srcToggles[tab][sourceName] === true) return;
+
+  srcToggles[tab][sourceName] = !srcToggles[tab][sourceName];
+  renderSources(tab);
+  applyFiltersAndRender(tab);
+}
+
+// ── SELECT ALL / NONE ─────────────────────────────────────────────────────
+function setAllSources(tab, state) {
+  if (!srcToggles[tab]) return;
+  const feeds = TABS[tab].feeds;
+  feeds.forEach(f => srcToggles[tab][f.name] = state);
+  // Always keep at least one on
+  if (!state) srcToggles[tab][feeds[0].name] = true;
+  renderSources(tab);
+  applyFiltersAndRender(tab);
+}
+
+// ── RENDER: GRID ──────────────────────────────────────────────────────────
+function imgEl(url, h, sourceName) {
+  const fallback = `<div class='card-nimg' style='height:${h}px;font-size:13px;font-family:Arial,sans-serif;font-weight:700;color:#2a4a7f;letter-spacing:1px;text-transform:uppercase'>${esc(sourceName||'NEWS')}</div>`;
+  if (url) {
+    return `<img class="card-img" src="${esc(url)}" style="height:${h}px" alt="" loading="lazy" onerror="this.outerHTML=\`${fallback}\`">`;
+  }
+  return fallback;
+}
+
+function renderGrid(articles) {
+  const g = document.getElementById('newsGrid');
+  if (!articles.length) {
+    g.innerHTML = `<div class="err"><p style="font-size:32px;margin-bottom:12px">⚠️</p>
+      <p>No articles loaded. The feeds may be temporarily unavailable.</p>
+      <button class="err-btn" onclick="doRefresh()">Try Again</button></div>`;
+    return;
+  }
+  const f = articles[0];
+  let html = `
+    <div class="featured" onclick="window.open('${esc(f.link)}','_blank')">
+      ${imgEl(f.image, 280, f.source)}
+      <div class="feat-body">
+        <div class="card-src">${esc(f.source)}</div>
+        <div class="feat-title">${esc(f.title)}</div>
+        <div class="card-desc" style="-webkit-line-clamp:5">${esc(f.description)}</div>
+        <div class="card-meta">${timeAgo(f.pubDate)}</div>
+      </div>
+    </div>`;
+
+  articles.slice(1, 22).forEach(a => {
+    html += `
+      <div class="card" onclick="window.open('${esc(a.link)}','_blank')">
+        ${imgEl(a.image, 168, a.source)}
+        <div class="card-body">
+          <div class="card-src">${esc(a.source)}</div>
+          <div class="card-title">${esc(a.title)}</div>
+          <div class="card-desc">${esc(a.description)}</div>
+          <div class="card-meta">${timeAgo(a.pubDate)}</div>
+        </div>
+      </div>`;
+  });
+  g.innerHTML = html;
+}
+
+// ── RENDER: TRENDING ──────────────────────────────────────────────────────
+function renderTrending(articles) {
+  document.getElementById('trending').innerHTML = articles.map((a,i) => `
+    <div class="trend-row" onclick="window.open('${esc(a.link)}','_blank')">
+      <div class="trend-n">0${i+1}</div>
+      <div><div class="trend-title">${esc(a.title)}</div><div class="trend-src">${esc(a.source)}</div></div>
+    </div>`).join('');
+}
+
+// ── RENDER: TICKER ────────────────────────────────────────────────────────
+function renderTicker(articles) {
+  const items = articles.map(a=>`<span class="tick"><strong>${esc(a.source)}:</strong> ${esc(a.title)}</span><span class="tick-sep"> · </span>`).join('');
+  document.getElementById('ticker').innerHTML = items + items;
+}
+
+// ── RENDER: SOURCES (with toggles) ────────────────────────────────────────
+function renderSources(tab) {
+  const feeds   = TABS[tab].feeds;
+  const toggles = srcToggles[tab] || {};
+  const cache   = tabCache[tab]   || {};
+
+  const rows = feeds.map(f => {
+    const on    = toggles[f.name] !== false;
+    const count = (cache[f.name] || []).length;
+    const id    = `src-${tab}-${f.name.replace(/\s+/g,'_')}`;
+    return `
+      <div class="src-row${on ? '' : ' dimmed'}">
+        <label class="src-name" for="${id}" style="cursor:pointer;flex:1;min-width:0">
+          <span class="src-dot" style="color:${on ? 'var(--accent)' : '#9ca3af'}">●</span>
+          <span style="flex:1">${esc(f.name)}</span>
+          ${count ? `<span class="src-count">${count}</span>` : ''}
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="${id}" ${on ? 'checked' : ''}
+                 onchange="toggleSource('${tab}','${f.name.replace(/'/g,"\\'")}')">
+          <span class="toggle-track"></span>
+        </label>
+      </div>`;
+  }).join('');
+
+  const activeCount = feeds.filter(f => toggles[f.name] !== false).length;
+  document.getElementById('sources').innerHTML = rows + `
+    <div class="sources-footer">
+      <span>${activeCount} of ${feeds.length} active</span>
+      <span>
+        <button style="color:var(--accent)" onclick="setAllSources('${tab}',true)">All</button>
+        &nbsp;·&nbsp;
+        <button style="color:var(--muted)" onclick="setAllSources('${tab}',false)">None</button>
+      </span>
+    </div>`;
+}
+
+// ── WEATHER WIDGET ────────────────────────────────────────────────────────
+const WX_ICONS = {
+  sunny:   '☀️', clear: '🌙', pcloudy: '⛅', cloudy: '☁️',
+  overcast:'☁️', mist: '🌫️', fog: '🌫️',
+  rain:    '🌧️', showers:'🌦️', drizzle:'🌦️',
+  snow:    '🌨️', sleet:'🌧️', blizzard:'❄️',
+  thunder: '⛈️', ice: '🌧️',
+};
+
+function wxCode(code) {
+  code = parseInt(code);
+  if (code === 113) return '☀️';
+  if (code === 116) return '⛅';
+  if (code === 119 || code === 122) return '☁️';
+  if (code === 143 || code === 248 || code === 260) return '🌫️';
+  if ([200,386,389,392,395].includes(code)) return '⛈️';
+  if ([227,230,323,326,329,332,335,338,368,371].includes(code)) return '❄️';
+  if ([176,263,266,293,296,299,302,305,308,353,356,359].includes(code)) return '🌧️';
+  if ([179,182,185,281,284,311,314,317,320,362,365,374,377].includes(code)) return '🌨️';
+  return '🌡️';
+}
+
+function dayName(offset) {
+  const d = new Date(); d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString('en-US', { weekday: 'short' });
+}
+
+async function fetchWeather() {
+  const zip = document.getElementById('wxZip').value.trim();
+  if (!zip) return;
+  const el = document.getElementById('wxDisplay');
+  el.innerHTML = '<div class="wx-msg">Fetching weather…</div>';
+
+  try {
+    // wttr.in supports zip codes directly, returns JSON
+    const url  = `https://wttr.in/${encodeURIComponent(zip)}?format=j1`;
+    // Try direct first, then through proxy
+    let data;
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      data = await r.json();
+    } catch {
+      const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      const r2    = await fetch(proxy, { signal: AbortSignal.timeout(10000) });
+      const j2    = await r2.json();
+      data        = JSON.parse(j2.contents);
+    }
+
+    const cur   = data.current_condition[0];
+    const area  = data.nearest_area[0];
+    const city  = area.areaName[0].value;
+    const region= area.region[0].value;
+    const days  = data.weather;
+
+    const tempF = cur.temp_F;
+    const desc  = cur.weatherDesc[0].value;
+    const icon  = wxCode(cur.weatherCode);
+    const humid = cur.humidity + '%';
+    const wind  = cur.windspeedMiles + ' mph';
+    const feels = cur.FeelsLikeF + '°';
+    const vis   = cur.visibility + ' mi';
+
+    const forecastHtml = days.slice(0,3).map((d,i) => {
+      const hi  = d.maxtempF + '°';
+      const lo  = d.mintempF + '°';
+      const ico = wxCode(d.hourly[4]?.weatherCode || 113);
+      return `<div class="wx-day">
+        <div class="wx-day-name">${i===0?'Today':dayName(i)}</div>
+        <div class="wx-day-icon">${ico}</div>
+        <div class="wx-day-hi">${hi}</div>
+        <div class="wx-day-lo">${lo}</div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="wx-current">
+        <div class="wx-icon">${icon}</div>
+        <div class="wx-temps">
+          <div class="wx-temp-main">${tempF}<sup>°F</sup></div>
+          <div class="wx-desc">${desc}</div>
+          <div class="wx-location">📍 ${city}, ${region}</div>
+        </div>
+      </div>
+      <div class="wx-details">
+        <div class="wx-detail"><div class="wx-detail-label">Feels Like</div><div class="wx-detail-val">${feels}</div></div>
+        <div class="wx-detail"><div class="wx-detail-label">Humidity</div><div class="wx-detail-val">${humid}</div></div>
+        <div class="wx-detail"><div class="wx-detail-label">Wind</div><div class="wx-detail-val">${wind}</div></div>
+        <div class="wx-detail"><div class="wx-detail-label">Visibility</div><div class="wx-detail-val">${vis}</div></div>
+      </div>
+      <div class="wx-forecast">${forecastHtml}</div>`;
+  } catch (e) {
+    document.getElementById('wxDisplay').innerHTML =
+      `<div class="wx-err">⚠️ Couldn't load weather. Check your zip code and try again.</div>`;
+  }
+}
+
+// ── RENDER: REGION LINKS ──────────────────────────────────────────────────
+function buildRegions() {
+  document.getElementById('regions').innerHTML = Object.entries(TABS).map(([k,v])=>`
+    <div class="reg-link" onclick="switchTab('${k}')">${v.icon} ${v.label}</div>`).join('');
+}
+
+// ── TAB SWITCH ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('#tabList button').forEach(b=>b.classList.remove('active'));
+  const btn = document.querySelector(`[data-tab="${tab}"]`);
+  if (btn) { btn.classList.add('active'); btn.scrollIntoView({block:'nearest',inline:'center'}); }
+  loadTab(tab);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.getElementById('tabList').addEventListener('click', e => {
+  const b = e.target.closest('button[data-tab]');
+  if (b) switchTab(b.dataset.tab);
+});
+
+// ── REFRESH ───────────────────────────────────────────────────────────────
+function doRefresh() {
+  const btn = document.getElementById('refreshBtn');
+  btn.textContent = '↻ Refreshing…'; btn.disabled = true;
+  loadTab(activeTab).finally(()=>{ btn.textContent='↻ Refresh'; btn.disabled=false; });
+}
+setInterval(doRefresh, 15 * 60 * 1000);
+
+// ── CLOCK ─────────────────────────────────────────────────────────────────
+function tick() {
+  const n = new Date();
+  document.getElementById('hdrDate').textContent =
+    n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'}) +
+    '  ·  ' + n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+tick(); setInterval(tick, 30000);
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+buildRegions();
+loadTab('us');
+</script>
+</body>
+</html>

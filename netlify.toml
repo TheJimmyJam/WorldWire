@@ -1,0 +1,29 @@
+# ── WorldWire — Netlify Configuration ─────────────────────────────────────
+
+[build]
+  publish = "."       # static site — no build step needed
+
+# ── Security & performance headers ────────────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options         = "SAMEORIGIN"
+    X-Content-Type-Options  = "nosniff"
+    Referrer-Policy         = "strict-origin-when-cross-origin"
+    Permissions-Policy      = "geolocation=(), microphone=(), camera=()"
+    # Cache HTML for 1 min (fresh news); assets cached longer
+    Cache-Control           = "public, max-age=60, stale-while-revalidate=300"
+
+# ── Redirect bare domain → www (swap these if you prefer bare domain) ────
+# Uncomment when you connect a custom domain in Netlify + Cloudflare:
+# [[redirects]]
+#   from   = "https://worldwire.io/*"
+#   to     = "https://www.worldwire.io/:splat"
+#   status = 301
+#   force  = true
+
+# ── SPA-style fallback (future-proofs multi-page expansion) ──────────────
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
