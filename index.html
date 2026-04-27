@@ -421,7 +421,25 @@ const PROXIES = [
 let activeTab = 'us';
 const tabCache    = {};   // tabCache[tab][sourceName]  = articles[]
 const srcToggles  = {};   // srcToggles[tab][sourceName] = true/false
-let   blockedTerms = [];  // global keyword blocklist
+
+// Persist blocked terms + weather zip in localStorage (no account needed)
+let blockedTerms = [];
+function savePrefs() {
+  try {
+    localStorage.setItem('cw_blocked', JSON.stringify(blockedTerms));
+  } catch {}
+}
+function loadPrefs() {
+  try {
+    const b = localStorage.getItem('cw_blocked');
+    if (b) blockedTerms = JSON.parse(b);
+    const z = localStorage.getItem('cw_zip');
+    if (z) {
+      document.getElementById('wxZip').value = z;
+      fetchWeather();
+    }
+  } catch {}
+}
 
 // ── UTILITIES ─────────────────────────────────────────────────────────────
 const esc  = s => (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -507,7 +525,7 @@ function parseXML(xmlStr, sourceName) {
                     || el.querySelector('description, summary')?.textContent || '';
     const rawContent = nsEl(el, NS_CONTENT, 'encoded')?.textContent || '';
 
-    // Description (plain text)
+    // Description (plain text, for display)
     const description = strip(rawContent || rawDesc);
 
     // Date
@@ -519,7 +537,18 @@ function parseXML(xmlStr, sourceName) {
     // Image
     const image = extractImage(el, rawDesc, rawContent);
 
-    return { title, link: link.trim(), description, image, pubDate, source: sourceName };
+    // searchText — every scrap of text from the item for keyword filtering
+    // Includes: title, full content, description, categories/tags, author, dc:subject
+    const categories = [...el.querySelectorAll('category, tag')]
+                         .map(c => c.textContent).join(' ');
+    const author = el.querySelector('author')?.textContent
+                || el.querySelector('dc\\:creator')?.textContent
+                || nsText(el, NS_DC, 'creator') || '';
+    const subject = nsText(el, NS_DC, 'subject');
+    const searchText = [title, strip(rawContent), strip(rawDesc), categories, author, subject]
+                         .filter(Boolean).join(' ');
+
+    return { title, link: link.trim(), description, searchText, image, pubDate, source: sourceName };
   }).filter(a => a.title.length > 5);
 }
 
@@ -587,12 +616,12 @@ function applyFiltersAndRender(tab) {
     })
     .sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
 
-  // Apply keyword blocklist
+  // Apply keyword blocklist — searches ALL text scraped from the feed item
   const totalBefore = articles.length;
   if (blockedTerms.length) {
     const patterns = blockedTerms.map(t => new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'i'));
     articles = articles.filter(a => {
-      const hay = (a.title + ' ' + a.description).toLowerCase();
+      const hay = (a.searchText || a.title + ' ' + a.description);
       return !patterns.some(p => p.test(hay));
     });
   }
@@ -728,24 +757,26 @@ function addFilter() {
   const input = document.getElementById('filterInput');
   const term  = input.value.trim();
   if (!term) return;
-  // Avoid exact duplicates (case-insensitive)
   if (blockedTerms.some(t => t.toLowerCase() === term.toLowerCase())) {
     input.value = ''; return;
   }
   blockedTerms.push(term);
   input.value = '';
+  savePrefs();
   renderFilterChips();
   applyFiltersAndRender(activeTab);
 }
 
 function removeFilter(term) {
   blockedTerms = blockedTerms.filter(t => t !== term);
+  savePrefs();
   renderFilterChips();
   applyFiltersAndRender(activeTab);
 }
 
 function clearAllFilters() {
   blockedTerms = [];
+  savePrefs();
   renderFilterChips();
   applyFiltersAndRender(activeTab);
 }
@@ -827,6 +858,7 @@ async function fetchWeather() {
     // Step 1: Zip → accurate city name + lat/lon via zippopotam.us
     const geoRes  = await fetch(`https://api.zippopotam.us/us/${zip}`, { signal: AbortSignal.timeout(7000) });
     if (!geoRes.ok) throw new Error('zip_not_found');
+    try { localStorage.setItem('cw_zip', zip); } catch {}
     const geoData = await geoRes.json();
     const place   = geoData.places[0];
     const city    = place['place name'];
@@ -1099,6 +1131,8 @@ tick(); setInterval(tick, 30000);
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 buildRegions();
+loadPrefs();        // restore saved filters + zip before first render
+renderFilterChips();
 loadTab('us');
 </script>
 </body>
