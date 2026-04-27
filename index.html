@@ -632,30 +632,48 @@ function renderSources(tab) {
 }
 
 // ── WEATHER WIDGET ────────────────────────────────────────────────────────
-const WX_ICONS = {
-  sunny:   '☀️', clear: '🌙', pcloudy: '⛅', cloudy: '☁️',
-  overcast:'☁️', mist: '🌫️', fog: '🌫️',
-  rain:    '🌧️', showers:'🌦️', drizzle:'🌦️',
-  snow:    '🌨️', sleet:'🌧️', blizzard:'❄️',
-  thunder: '⛈️', ice: '🌧️',
-};
-
-function wxCode(code) {
+// WMO weather codes → emoji (Open-Meteo uses WMO codes)
+function wxIcon(code) {
   code = parseInt(code);
-  if (code === 113) return '☀️';
-  if (code === 116) return '⛅';
-  if (code === 119 || code === 122) return '☁️';
-  if (code === 143 || code === 248 || code === 260) return '🌫️';
-  if ([200,386,389,392,395].includes(code)) return '⛈️';
-  if ([227,230,323,326,329,332,335,338,368,371].includes(code)) return '❄️';
-  if ([176,263,266,293,296,299,302,305,308,353,356,359].includes(code)) return '🌧️';
-  if ([179,182,185,281,284,311,314,317,320,362,365,374,377].includes(code)) return '🌨️';
+  if (code === 0)              return '☀️';
+  if (code === 1)              return '🌤️';
+  if (code === 2)              return '⛅';
+  if (code === 3)              return '☁️';
+  if ([45,48].includes(code))  return '🌫️';
+  if ([51,53,55,56,57].includes(code)) return '🌦️';
+  if ([61,63,65,66,67].includes(code)) return '🌧️';
+  if ([71,73,75,77].includes(code))    return '❄️';
+  if ([80,81,82].includes(code))       return '🌦️';
+  if ([85,86].includes(code))          return '🌨️';
+  if (code === 95)             return '⛈️';
+  if ([96,99].includes(code))  return '⛈️';
   return '🌡️';
 }
 
-function dayName(offset) {
-  const d = new Date(); d.setDate(d.getDate() + offset);
-  return d.toLocaleDateString('en-US', { weekday: 'short' });
+function wxDesc(code) {
+  code = parseInt(code);
+  if (code === 0)  return 'Clear sky';
+  if (code === 1)  return 'Mostly clear';
+  if (code === 2)  return 'Partly cloudy';
+  if (code === 3)  return 'Overcast';
+  if (code === 45) return 'Foggy';
+  if (code === 48) return 'Icy fog';
+  if ([51,53,55].includes(code)) return 'Drizzle';
+  if ([56,57].includes(code))    return 'Freezing drizzle';
+  if ([61,63,65].includes(code)) return 'Rain';
+  if ([66,67].includes(code))    return 'Freezing rain';
+  if ([71,73,75].includes(code)) return 'Snow';
+  if (code === 77) return 'Snow grains';
+  if ([80,81,82].includes(code)) return 'Rain showers';
+  if ([85,86].includes(code))    return 'Snow showers';
+  if (code === 95) return 'Thunderstorm';
+  if ([96,99].includes(code))    return 'Severe thunderstorm';
+  return 'Unknown';
+}
+
+function dayName(dateStr, isToday) {
+  if (isToday) return 'Today';
+  return new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
 }
 
 async function fetchWeather() {
@@ -665,45 +683,50 @@ async function fetchWeather() {
   el.innerHTML = '<div class="wx-msg">Fetching weather…</div>';
 
   try {
-    // wttr.in supports zip codes directly, returns JSON
-    const url  = `https://wttr.in/${encodeURIComponent(zip)}?format=j1`;
-    // Try direct first, then through proxy
-    let data;
-    try {
-      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      data = await r.json();
-    } catch {
-      const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-      const r2    = await fetch(proxy, { signal: AbortSignal.timeout(10000) });
-      const j2    = await r2.json();
-      data        = JSON.parse(j2.contents);
-    }
+    // Step 1: Zip → accurate city name + lat/lon via zippopotam.us
+    const geoRes  = await fetch(`https://api.zippopotam.us/us/${zip}`, { signal: AbortSignal.timeout(7000) });
+    if (!geoRes.ok) throw new Error('zip_not_found');
+    const geoData = await geoRes.json();
+    const place   = geoData.places[0];
+    const city    = place['place name'];
+    const state   = place['state abbreviation'];
+    const lat     = parseFloat(place.latitude);
+    const lon     = parseFloat(place.longitude);
 
-    const cur   = data.current_condition[0];
-    const area  = data.nearest_area[0];
-    const city  = area.areaName[0].value;
-    const region= area.region[0].value;
-    const days  = data.weather;
+    // Step 2: Weather via Open-Meteo (free, no key, native CORS)
+    const wxUrl = `https://api.open-meteo.com/v1/forecast`
+      + `?latitude=${lat}&longitude=${lon}`
+      + `&current_weather=true`
+      + `&hourly=apparent_temperature,relativehumidity_2m,visibility`
+      + `&daily=weathercode,temperature_2m_max,temperature_2m_min`
+      + `&temperature_unit=fahrenheit&windspeed_unit=mph`
+      + `&precipitation_unit=inch&timezone=auto&forecast_days=3`;
 
-    const tempF = cur.temp_F;
-    const desc  = cur.weatherDesc[0].value;
-    const icon  = wxCode(cur.weatherCode);
-    const humid = cur.humidity + '%';
-    const wind  = cur.windspeedMiles + ' mph';
-    const feels = cur.FeelsLikeF + '°';
-    const vis   = cur.visibility + ' mi';
+    const wxRes  = await fetch(wxUrl, { signal: AbortSignal.timeout(8000) });
+    const wx     = await wxRes.json();
 
-    const forecastHtml = days.slice(0,3).map((d,i) => {
-      const hi  = d.maxtempF + '°';
-      const lo  = d.mintempF + '°';
-      const ico = wxCode(d.hourly[4]?.weatherCode || 113);
-      return `<div class="wx-day">
-        <div class="wx-day-name">${i===0?'Today':dayName(i)}</div>
-        <div class="wx-day-icon">${ico}</div>
-        <div class="wx-day-hi">${hi}</div>
-        <div class="wx-day-lo">${lo}</div>
-      </div>`;
-    }).join('');
+    const cur     = wx.current_weather;
+    const tempF   = Math.round(cur.temperature) + '';
+    const wind    = Math.round(cur.windspeed) + ' mph';
+    const code    = cur.weathercode;
+    const icon    = wxIcon(code);
+    const desc    = wxDesc(code);
+
+    // Find current hour index in hourly array for feels-like + humidity
+    const nowHour = new Date().toISOString().slice(0,13);
+    const hrIdx   = wx.hourly.time.findIndex(t => t.startsWith(nowHour));
+    const feels   = hrIdx >= 0 ? Math.round(wx.hourly.apparent_temperature[hrIdx]) + '°' : '—';
+    const humid   = hrIdx >= 0 ? wx.hourly.relativehumidity_2m[hrIdx] + '%' : '—';
+    const vis     = hrIdx >= 0 ? Math.round(wx.hourly.visibility[hrIdx] / 5280) + ' mi' : '—';
+
+    // 3-day forecast
+    const forecastHtml = wx.daily.time.map((date, i) => `
+      <div class="wx-day">
+        <div class="wx-day-name">${dayName(date, i===0)}</div>
+        <div class="wx-day-icon">${wxIcon(wx.daily.weathercode[i])}</div>
+        <div class="wx-day-hi">${Math.round(wx.daily.temperature_2m_max[i])}°</div>
+        <div class="wx-day-lo">${Math.round(wx.daily.temperature_2m_min[i])}°</div>
+      </div>`).join('');
 
     el.innerHTML = `
       <div class="wx-current">
@@ -711,7 +734,7 @@ async function fetchWeather() {
         <div class="wx-temps">
           <div class="wx-temp-main">${tempF}<sup>°F</sup></div>
           <div class="wx-desc">${desc}</div>
-          <div class="wx-location">📍 ${city}, ${region}</div>
+          <div class="wx-location">📍 ${city}, ${state}</div>
         </div>
       </div>
       <div class="wx-details">
@@ -721,9 +744,12 @@ async function fetchWeather() {
         <div class="wx-detail"><div class="wx-detail-label">Visibility</div><div class="wx-detail-val">${vis}</div></div>
       </div>
       <div class="wx-forecast">${forecastHtml}</div>`;
+
   } catch (e) {
-    document.getElementById('wxDisplay').innerHTML =
-      `<div class="wx-err">⚠️ Couldn't load weather. Check your zip code and try again.</div>`;
+    const msg = e.message === 'zip_not_found'
+      ? '⚠️ Zip code not found. Try a different one.'
+      : '⚠️ Couldn\'t load weather. Try again.';
+    document.getElementById('wxDisplay').innerHTML = `<div class="wx-err">${msg}</div>`;
   }
 }
 
